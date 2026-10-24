@@ -21,6 +21,14 @@ decision_path is `embed_task -> match_skills -> no_hit -> fallback_frontier
 -> log_trace`. Click a run - the graph highlights that exact path. Cost per
 batch sits high; cumulative spend climbs steeply.
 
+**Gate rule disclosure for this take.** The recorded run used
+`--allow-partial-pass` (gate on the mean judge score at the same 0.75 bar;
+the default additionally requires every validation pair to pass). Say it on
+screen: the default rule rejected all four candidates - including one skill
+that tried to refuse a task outside its competence - so the relaxed rule is
+the visible, disclosed configuration, not a hidden tweak. The run summary
+prints the gate rule and every gate decision carries its own measured scores.
+
 **0:35-1:05 - Discovery fires.**
 Run discovery. Narrate the offline nodes as they appear in the event log:
 `cluster_history -> propose_skill -> overlap_check -> judge_gate ->

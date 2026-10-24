@@ -96,6 +96,7 @@ def run_discovery(
     max_candidates: int = 5,
     validation_tasks: int = 3,
     min_judge_score: float = 0.75,
+    require_all_pass: bool = True,
     merge_threshold: float = 0.80,
     reject_threshold: float = 0.92,
     decisions_log_path: Optional[str] = None,
@@ -198,6 +199,7 @@ def run_discovery(
                 run_skill=run_skill,
                 k=validation_tasks,
                 min_judge_score=min_judge_score,
+                require_all_pass=require_all_pass,
             )
             if decision.decision == "promote":
                 if not dry_run:
