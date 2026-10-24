@@ -77,11 +77,16 @@ competence. The demo take ran with that rule visibly relaxed to mean-score-only
 
 ## How it's cheaper
 
-Two multiplicative savings, both measured: the skill path sends **fewer tokens** (loaded skill
-parts + task instead of full context) to a **cheaper model** (haiku instead of sonnet). Measured
-across the take: **$0.0034/task skilled vs $0.0075/task frontier = 55% cheaper per routed task**,
-with quality held flat within the judge's tie margin. Skill runs also load only the parts the
-task needs - traces logged `3 of 4` and `2 of 4` parts loaded on real tasks.
+Measured across the take: **$0.0034/task skilled vs $0.0075/task frontier = 55% cheaper per
+routed task**, with quality holding within the judge's tie margin on the majority of pairs
+(36 judged comparisons: 13 frontier wins, 12 skill wins, 11 ties; means 0.898 vs 0.859 across
+the full set, which includes candidates the gate went on to reject). On this corpus the savings
+come from the **cheaper per-token model** (haiku at one-third of sonnet's price) - loaded skill
+parts actually *add* input tokens (596 vs 181 avg tokens_in), and the price difference more than
+covers them. Selective part loading keeps that overhead bounded: traces logged `3 of 4` and
+`2 of 4` parts loaded on real tasks. On workloads with large per-task contexts, loading parts
+instead of full context cuts the token side too - that direction is architectural, but only the
+numbers above are measured.
 
 ## Run it
 
