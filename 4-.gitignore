@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.env
+.streamlit/secrets.toml
+src/traces/*.jsonl
+!src/traces/.gitkeep
+.DS_Store
