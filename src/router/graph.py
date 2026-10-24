@@ -108,10 +108,19 @@ class DecisionGraph:
         skill = ctx["skill"]
         parts = skill.get("parts", [])
         task_text = f"{task.prompt}\n{task.context}".lower()
+        # Auxiliary instructions parts load only when relevant to this task
+        # (measured cosine vs the task prompt); the core procedure (first
+        # instructions part) always loads so the skill stays executable.
+        part_thr = float(os.environ.get("PART_MATCH_THRESHOLD", 0.66))
+        seen_core = False
         loaded = []
         for part in parts:
             if part.get("kind") == "instructions":
-                loaded.append(part)
+                if not seen_core:
+                    loaded.append(part)
+                    seen_core = True
+                elif cosine(ctx["task_vec"], self.embedder.embed(part.get("content", "")[:600])) >= part_thr:
+                    loaded.append(part)
             else:
                 keywords = _script_keywords(part)
                 if any(kw in task_text for kw in keywords):
