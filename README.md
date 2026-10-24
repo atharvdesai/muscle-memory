@@ -30,14 +30,14 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    U[Usage: tasks routed + traced] --> D[Discovery: cluster history,<br/>propose atomic skills]
-    D --> O{overlap check:<br/>merge or reject}
-    O --> G{promotion gate: judge panel<br/>+ measured savings}
+    U[Usage: tasks routed + traced] --> D["Discovery: cluster history,<br/>propose atomic skills"]
+    D --> O{"overlap check:<br/>merge or reject"}
+    O --> G{"promotion gate: judge panel<br/>+ measured savings"}
     G -->|pass| S[(Skill store:<br/>atomic, non-overlapping)]
     G -->|fail| R[rejected - logged with reasons]
-    S --> RT[Router: skill hits get cheaper]
+    S --> RT["Router: skill hits get cheaper"]
     RT --> U
-    S --> L[Lifecycle: hit rate, quality decay,<br/>negative savings]
+    S --> L["Lifecycle: hit rate, quality decay,<br/>negative savings"]
     L -->|prune| S
 ```
 
