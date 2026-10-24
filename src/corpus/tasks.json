@@ -1,0 +1,14 @@
+[
+  {"id": "t01", "type": "summarize", "prompt": "Summarize this support ticket into three bullet points.", "context": "Ticket: user cannot log in after password reset; error 4101; tried Chrome and Safari."},
+  {"id": "t02", "type": "summarize", "prompt": "Summarize the following customer email in three bullets.", "context": "Email: billing charged twice in October; wants refund and confirmation."},
+  {"id": "t03", "type": "summarize", "prompt": "Give me a three-bullet summary of this bug report.", "context": "Report: mobile app crashes on launch after v2.3 update on Android 14."},
+  {"id": "t04", "type": "summarize", "prompt": "Summarize this escalation note into three key bullets.", "context": "Note: enterprise client threatening churn over SLA misses in Q3."},
+  {"id": "t05", "type": "extract", "prompt": "Extract all dates and dollar amounts from this invoice email.", "context": "Invoice #4412 dated 2026-09-30 for $1,240.00, due 2026-10-30; late fee $50."},
+  {"id": "t06", "type": "extract", "prompt": "Pull the dates and monetary amounts out of this receipt text.", "context": "Receipt: 2026-10-01, subtotal $86.20, tax $7.75, total $93.95."},
+  {"id": "t07", "type": "extract", "prompt": "List every date and amount mentioned in this payment reminder.", "context": "Reminder: balance of $410.00 due 2026-10-15; autopay runs 2026-10-14."},
+  {"id": "t08", "type": "extract", "prompt": "Extract dates and dollar figures from this contract clause.", "context": "Clause: term begins 2027-01-01; fee $5,000 per quarter; penalty 2% per month."},
+  {"id": "t09", "type": "oneoff", "prompt": "Write a haiku about quarterly planning."},
+  {"id": "t10", "type": "oneoff", "prompt": "Convert this paragraph to a limerick for the team offsite invite.", "context": "The offsite is in Monterey on Friday."},
+  {"id": "t11", "type": "oneoff", "prompt": "Suggest a name for our new office dog."},
+  {"id": "t12", "type": "oneoff", "prompt": "Draft a 280-character post congratulating Priya on her patent."}
+]
