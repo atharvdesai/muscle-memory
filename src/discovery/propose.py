@@ -17,14 +17,18 @@ Rules:
 - ATOMIC: exactly ONE responsibility - a single verb phrase. If the samples
   mix two different jobs, pick the dominant one. Never propose a skill that
   does two things.
-- parts: at least one part of kind "instructions" describing the exact
-  procedure a cheap model should follow. Add at most one part of kind
-  "script" (runnable Python helper source in `content`) only when a
-  deterministic helper genuinely replaces model work.
+- parts: 2 to 4 ATOMIC parts, each covering exactly one aspect of the
+  skill, so a run can load only the parts it needs. Split along natural
+  seams, e.g. core procedure / output format spec / edge cases / worked
+  example. Parts of kind "instructions" carry the procedure; add at most
+  one part of kind "script" (runnable Python helper source in `content`)
+  only when a deterministic helper genuinely replaces model work. NEVER
+  collapse the skill into a single part.
 - trigger_description: one sentence a router can match new tasks against.
 - Respond with STRICT JSON only, no prose, no code fences:
   {"name": str, "responsibility": str, "trigger_description": str,
-   "parts": [{"id": "p1", "kind": "instructions", "content": str}, ...]}
+   "parts": [{"id": "p1", "kind": "instructions", "content": str},
+             {"id": "p2", "kind": "instructions", "content": str}, ...]}
 """
 
 _MAX_SAMPLES = 8
@@ -121,6 +125,8 @@ def propose_skill(
             parts = [SkillPart(**p) for p in data["parts"]]
             if not any(p.kind == "instructions" for p in parts):
                 raise ValueError("candidate has no instructions part")
+            if not (2 <= len(parts) <= 4):
+                raise ValueError(f"candidate must have 2-4 atomic parts, got {len(parts)}")
             # normalize part ids to p1..pn
             for i, p in enumerate(parts, 1):
                 p.id = f"p{i}"
