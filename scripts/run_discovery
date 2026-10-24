@@ -77,6 +77,10 @@ def main() -> int:
     ap.add_argument("--max-candidates", type=int, default=5)
     ap.add_argument("--validation-tasks", type=int, default=3)
     ap.add_argument("--min-judge-score", type=float, default=0.75)
+    ap.add_argument("--allow-partial-pass", action="store_true",
+                    help="gate on mean judge score only (default: every validation "
+                         "pair must also pass; relaxing this is disclosed in the "
+                         "run summary and in each gate decision's reasons)")
     ap.add_argument("--merge-threshold", type=float, default=0.80)
     ap.add_argument("--reject-threshold", type=float, default=0.92)
     args = ap.parse_args()
@@ -97,6 +101,7 @@ def main() -> int:
         max_candidates=args.max_candidates,
         validation_tasks=args.validation_tasks,
         min_judge_score=args.min_judge_score,
+        require_all_pass=not args.allow_partial_pass,
         merge_threshold=args.merge_threshold,
         reject_threshold=args.reject_threshold,
         dry_run=args.dry_run,
@@ -111,6 +116,7 @@ def main() -> int:
         "rejected": report.rejected,
         "pending": report.pending,
         "dry_run": report.dry_run,
+        "gate_rule": "mean>=%s%s" % (args.min_judge_score, " + all pairs pass" if not args.allow_partial_pass else " (partial pass allowed - disclosed)"),
     }
     if judge is None:
         summary["note"] = "no judge importable from src.judge: candidates held pending, gate not bypassed"
