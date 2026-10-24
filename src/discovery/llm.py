@@ -234,6 +234,19 @@ def get_llm(mock: bool | None = None) -> BaseLLM:
     if mock or (not gemini_key and not anthropic_key and not openai_key):
         return MockLLM()
     model_override = os.environ.get("MUSCLE_MEMORY_MODEL")
+    # LLM_PROVIDER pins the provider when several keys are present (embeddings
+    # may need GEMINI_API_KEY in env while generation runs on Anthropic).
+    forced = os.environ.get("LLM_PROVIDER", "").strip().lower()
+    if forced == "anthropic" and anthropic_key:
+        return AnthropicLLM(anthropic_key, model_override or "claude-sonnet-4-5")
+    if forced == "openai" and openai_key:
+        return OpenAILLM(openai_key, model_override or "gpt-4o-mini")
+    if forced == "gemini" and gemini_key:
+        return GeminiLLM(
+            gemini_key,
+            model_override
+            or os.environ.get("GEMINI_MODEL_CHEAP", "gemini-3-flash-preview"),
+        )
     if gemini_key:
         return GeminiLLM(
             gemini_key,

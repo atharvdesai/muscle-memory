@@ -42,7 +42,7 @@ _PRICES_PER_MTOK = {
 }
 _DEFAULT_PRICE = (1.00, 5.00)
 
-DEFAULT_ANTHROPIC_MODEL = "claude-3-5-haiku-20241022"
+DEFAULT_ANTHROPIC_MODEL = "claude-haiku-4-5"  # integrator-verified live 2026-10-24 (200); claude-3-5-haiku-20241022 404s
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview"  # integrator-verified live on the shared key 2026-10-24 (200); 2.5-flash/2.5-pro 404, 3.1-pro quota-limited
 
