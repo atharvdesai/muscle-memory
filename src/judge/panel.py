@@ -24,7 +24,7 @@ import re
 from dataclasses import dataclass, field
 
 from .llm import LLMClient
-from .rubric import RUBRIC, rubric_prompt_text
+from .rubric import RUBRIC, rubric_prompt_text, weighted_quality
 
 _DIM_NAMES = [d["name"] for d in RUBRIC]
 
@@ -35,6 +35,7 @@ class PanelScore:
     dim_scores: dict[str, float]          # dimension -> mean 1-5
     rationales: list[str] = field(default_factory=list)
     members_used: int = 0
+    member_qualities: list[float] = field(default_factory=list)  # per-stance weighted quality
 
 
 _SYSTEM = (
@@ -123,10 +124,14 @@ class LLMPanelJudge:
         def mean(xs):
             return sum(xs) / len(xs) if xs else 1.0
 
+        def per_member(per_dim):
+            return [round(weighted_quality({d: per_dim[d][i] for d in _DIM_NAMES}), 4)
+                    for i in range(members_used)]
+
         skill = PanelScore({d: mean(per_dim_skill[d]) for d in _DIM_NAMES},
-                           rationales_skill, members_used)
+                           rationales_skill, members_used, per_member(per_dim_skill))
         frontier = PanelScore({d: mean(per_dim_frontier[d]) for d in _DIM_NAMES},
-                              rationales_frontier, members_used)
+                              rationales_frontier, members_used, per_member(per_dim_frontier))
         return skill, frontier
 
 

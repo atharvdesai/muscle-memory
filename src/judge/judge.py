@@ -40,6 +40,7 @@ class SideResult:
     dim_scores: dict[str, float]        # dimension -> mean 1-5
     quality_score: float                # weighted, normalized [0, 1]
     rationales: list[str] = field(default_factory=list)
+    member_scores: list[float] = field(default_factory=list)  # per-stance weighted quality
 
 
 @dataclass
@@ -93,9 +94,11 @@ class Judge:
         """Score both paths on the same task through the same panel."""
         skill_ps, frontier_ps = self._panel.score_pair(task, skill_output, frontier_output)
         skill = SideResult("skill", skill_output, skill_ps.dim_scores,
-                           weighted_quality(skill_ps.dim_scores), skill_ps.rationales)
+                           weighted_quality(skill_ps.dim_scores), skill_ps.rationales,
+                           skill_ps.member_qualities)
         frontier = SideResult("frontier", frontier_output, frontier_ps.dim_scores,
-                              weighted_quality(frontier_ps.dim_scores), frontier_ps.rationales)
+                              weighted_quality(frontier_ps.dim_scores), frontier_ps.rationales,
+                              frontier_ps.member_qualities)
         delta = skill.quality_score - frontier.quality_score
         winner = "tie" if abs(delta) < self.config.tie_margin else ("skill" if delta > 0 else "frontier")
         members = max(skill_ps.members_used, frontier_ps.members_used)
@@ -136,7 +139,9 @@ def _clip(text: str, limit: int = 8000) -> str:
 
 def judge_pair(task: dict, frontier_output: str, skill_output: str,
                judge: "Judge | None" = None,
-               log_path: str | None = None) -> dict:
+               log_path: str | None = None,
+               usage_frontier: dict | None = None,
+               usage_skill: dict | None = None) -> dict:
     """Discovery-gate contract: score a skill output against a frontier output.
 
     This is the exact signature src/discovery/gate.py imports:
@@ -152,7 +157,7 @@ def judge_pair(task: dict, frontier_output: str, skill_output: str,
     passed = pair.skill.quality_score >= pair.frontier.quality_score - j.config.tie_margin
     rationale = ("; ".join((pair.skill.rationales + pair.frontier.rationales)[:2])
                  or f"winner: {pair.winner}")
-    _log_comparison({
+    record = {
         "task_id": pair.task_id,
         "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "prompt": _clip(task.get("prompt", ""), 2000),
@@ -164,8 +169,23 @@ def judge_pair(task: dict, frontier_output: str, skill_output: str,
         "winner": pair.winner,
         "passed": passed,
         "judge_mode": pair.judge_mode,
+        "panel_members": pair.panel_members,
+        "panel_scores": {
+            "stances": ["strict and skeptical", "balanced", "generous but honest"],
+            "skill": pair.skill.member_scores,
+            "frontier": pair.frontier.member_scores,
+        },
+        "rationales_full": {
+            "skill": [_clip(r, 800) for r in pair.skill.rationales],
+            "frontier": [_clip(r, 800) for r in pair.frontier.rationales],
+        },
         "rationale": _clip(rationale, 1000),
-    }, log_path)
+    }
+    if usage_frontier is not None:
+        record["frontier_usage"] = usage_frontier
+    if usage_skill is not None:
+        record["skill_usage"] = usage_skill
+    _log_comparison(record, log_path)
     return {"score": round(pair.skill.quality_score, 4),
             "passed": bool(passed), "rationale": rationale}
 

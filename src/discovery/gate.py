@@ -77,7 +77,15 @@ def judge_gate(
         task_dict = task.model_dump()  # no `type` field exists on this model
         fr = RunResult(**run_frontier(task_dict))
         sk = RunResult(**run_skill(task_dict, candidate.model_dump()))
-        verdict = JudgeVerdict(**judge(task_dict, fr.output, sk.output))
+        try:
+            verdict = JudgeVerdict(**judge(
+                task_dict, fr.output, sk.output,
+                usage_frontier=fr.model_dump(exclude={"output"}),
+                usage_skill=sk.model_dump(exclude={"output"}),
+            ))
+        except TypeError:
+            # fallback judge adapters with the plain 3-arg contract
+            verdict = JudgeVerdict(**judge(task_dict, fr.output, sk.output))
         verdicts.append(verdict)
         frontier_costs.append(fr.cost_usd)
         skill_costs.append(sk.cost_usd)
