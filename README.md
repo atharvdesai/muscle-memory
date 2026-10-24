@@ -49,44 +49,59 @@ merges or rejects lookalikes before they enter the store.
 
 ## Measured evidence
 
-From one take: **195 runs, $1.315 total spend, 4 skills promoted, 2 pruned, 36 judged comparisons.**
-Every gate decision below is logged in `src/traces/discovery.jsonl` with its scores.
+Latest take (2026-10-24, live Anthropic + gemini-embedding-2): **120 runs, $0.830 total spend,
+5 candidates judged, 4 skills promoted, 1 rejected by the gate.** Every gate decision is in
+`src/traces/discovery.jsonl` with its scores; the full evidence set is in `demo/VERIFICATION.md`.
 
-**Example 1 - flat quality at half the cost.** Task: "Write a pytest suite for this utility,
-including failure modes." Judge panel: frontier **0.953** vs skill **0.950** - a tie inside the
-0.05 margin. The skill path measured **$0.0106/task vs $0.0205 frontier** (-48%).
+- Cost: frontier avg **$0.0076/task** vs skill avg **$0.0027/task** = **65% cheaper** on routed
+  tasks. The gate's own measured validation savings: $0.0016-$0.0046/task per promoted skill.
+- Quality: 12 judged pairs at the gate - 4 skill wins, 3 frontier wins, 5 ties (means 0.902
+  frontier vs 0.853 skill across the full candidate set, which includes the rejected one).
+- The gate rejects: `skill-draft-release-notes` measured mean judge **0.67** (< 0.75) despite
+  positive measured savings - not promoted. On an earlier take under the strict all-pairs-pass
+  default, **all four candidates were rejected**, including one skill that tried to refuse a task
+  outside its competence. The demo take runs visibly with `--allow-partial-pass` (mean >= 0.75,
+  same bar, disclosed on screen and in every run summary).
+- The lifecycle retires a bad skill (earlier take): the unit-test skill passed the gate, then
+  measured **$0.0104/run vs $0.0075/run frontier** in production and was **pruned automatically**
+  - decision and measured reasons in `src/traces/lifecycle.jsonl`.
 
-**Example 2 - the skill beats the frontier model.** Task: "Suggest labels and a priority for
-this issue." Judge panel: skill **0.900** vs frontier **0.827** - the focused skill instructions
-beat the general model. Measured **$0.0024/task vs $0.0053** (-55%). On a commit-message task
-("What's a good git commit message for this diff? Keep it conventional.") the documentation
-skill scored **0.923** vs frontier **0.753**. In live routing, changelog tasks - a workflow with
-no skill of their own - correctly route to that same code-change-documentation skill.
+## The ablation: does plain haiku beat the whole system?
 
-**Example 3 - the lifecycle retires a bad skill.** The unit-test skill passed the gate
-(mean judge **0.768**, measured validation savings $0.0099/task) and was promoted. In production
-the lifecycle measured its skilled runs at **$0.0104/run vs $0.0075/run frontier** - the skill's
-loaded parts cost more than they saved. It was **pruned automatically**; the decision and the
-measured reasons are in `src/traces/lifecycle.jsonl`. The gate judges quality on samples; the
-lifecycle keeps score on real traffic, and the skill web shrinks when it should.
+The obvious counter-claim: "skip the skill system, just run everything on the cheap model." We
+ran it live - all 40 corpus tasks, three arms: **plain haiku** (full context, no skill sheet),
+**skill path** (router match + selective parts + haiku), **frontier** (sonnet, full context).
+Judged head-to-head by the 3-stance panel with the balanced stance on Sonnet
+(`MUSCLE_MEMORY_PANEL_MODELS`), so haiku never grades its own work alone. Full records:
+`demo/verification_evidence.json` -> `ablation`.
 
-The gate also holds the bar by default: on an earlier take, the strict all-pairs-pass rule
-**rejected all four candidates**, including one skill that tried to refuse a task outside its
-competence. The demo take ran with that rule visibly relaxed to mean-score-only
-(`--allow-partial-pass`, same 0.75 bar) - disclosed on screen and in every run summary.
+Measured result - **on this corpus, plain haiku is competitive, and we say so:**
 
-## How it's cheaper
+| arm | avg cost | avg tokens_in |
+|---|---|---|
+| plain haiku (no skill) | $0.0023 | 171 |
+| skill path | $0.0024 | 526 |
+| frontier | $0.0072 | 171 |
 
-Measured across the take: **$0.0034/task skilled vs $0.0075/task frontier = 55% cheaper per
-routed task**, with quality holding within the judge's tie margin on the majority of pairs
-(36 judged comparisons: 13 frontier wins, 12 skill wins, 11 ties; means 0.898 vs 0.859 across
-the full set, which includes candidates the gate went on to reject). On this corpus the savings
-come from the **cheaper per-token model** (haiku at one-third of sonnet's price) - loaded skill
-parts actually *add* input tokens (596 vs 181 avg tokens_in), and the price difference more than
-covers them. Selective part loading keeps that overhead bounded: traces logged `3 of 4` and
-`2 of 4` parts loaded on real tasks. On workloads with large per-task contexts, loading parts
-instead of full context cuts the token side too - that direction is architectural, but only the
-numbers above are measured.
+- plain vs frontier: **plain 0.912 vs frontier 0.900** (15 plain / 11 frontier / 14 ties). These
+  are short-context tasks; haiku full-context matches sonnet here, so the 65% saving over
+  frontier is a model-tier saving, not a skill-mechanism saving.
+- plain vs skill (22 skill-routed): **plain 0.900 vs skill 0.879** (7 skill / 8 plain / 7 ties).
+  A wash on average.
+- **Where the skill system wins decisively: issue triage** - skill **0.918** vs plain **0.807**
+  vs frontier **0.808**, at $0.0016 vs $0.0055 frontier. Specialized instructions beat both
+  models' generic answers on quality and cost at once.
+- Where it hurts: commit-message tasks that matched the neighboring PR-description skill scored
+  0.782 vs 0.889 plain - a wrong-skill route is measurably worse than no skill, which is exactly
+  what the keep/retire lifecycle exists to catch on real traffic.
+
+What the skill layer is actually for, given these numbers: on small-context tasks a cheap model
+with full context is enough, and the honest margin is specialization on workflows like triage.
+The architectural payoff - loading 3 of 4 parts *instead of* a growing context window - starts
+where this corpus ends: long histories and large payloads, where full-context-every-time stops
+being cheap at any model tier. That direction is architectural; only the numbers above are
+measured.
+
 
 ## Run it
 
