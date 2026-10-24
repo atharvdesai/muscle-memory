@@ -8,8 +8,8 @@ Provider selection (first match wins):
   5. GEMINI_API_KEY set                  -> gemini
   6. otherwise                           -> mock
 
-Model env overrides: GEMINI_MODEL_FRONTIER (default gemini-2.5-pro),
-GEMINI_MODEL_CHEAP (default gemini-2.5-flash).
+Model env overrides: GEMINI_MODEL_FRONTIER (default gemini-3.1-pro-preview),
+GEMINI_MODEL_CHEAP (default gemini-3-flash-preview). 2.5 generation 404s on this key.
 
 Every call returns a Completion with MEASURED tokens/latency/cost. In mock
 mode the quantities are still measured from the actual run (token estimate

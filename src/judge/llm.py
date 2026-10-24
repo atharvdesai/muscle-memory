@@ -44,7 +44,7 @@ _DEFAULT_PRICE = (1.00, 5.00)
 
 DEFAULT_ANTHROPIC_MODEL = "claude-3-5-haiku-20241022"
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
-DEFAULT_GEMINI_MODEL = "gemini-3.6-flash"  # verified live 2026-10-24; 2.5-flash/2.5-pro generation 404s
+DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview"  # integrator-verified live on the shared key 2026-10-24 (200); 2.5-flash/2.5-pro 404, 3.1-pro quota-limited
 
 
 @dataclass
@@ -220,7 +220,10 @@ class LLMClient:
                 "system_instruction": {"parts": [{"text": system}]},
                 "contents": [{"role": "user", "parts": [{"text": user}]}],
                 "generationConfig": {"temperature": temperature,
-                                     "maxOutputTokens": max_tokens},
+                                     "maxOutputTokens": max(max_tokens, 4096),
+                                     # panel verdicts are strict JSON; disable
+                                     # thinking so it can't eat the budget
+                                     "thinkingConfig": {"thinkingBudget": 0}},
             },
         )
         parts = data["candidates"][0].get("content", {}).get("parts", [])
