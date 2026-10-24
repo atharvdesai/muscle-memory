@@ -1,0 +1,34 @@
+{
+  "id": "skill-triage-github-issue",
+  "name": "triage_github_issue",
+  "responsibility": "Triage a GitHub issue by analyzing its content and suggesting labels, priority, and next steps",
+  "trigger_description": "User requests triage, labels, priority, or next steps for a GitHub issue or bug report.",
+  "parts": [
+    {
+      "id": "p1",
+      "kind": "instructions",
+      "content": "Read the issue title and body carefully. Identify the issue type: bug (something broken), feature request (new capability), enhancement (improve existing feature), documentation, question, or other. Note key signals: error messages, reproduction steps, version info, user impact scope, and urgency indicators (blocking work, affects many users, workarounds available)."
+    },
+    {
+      "id": "p2",
+      "kind": "instructions",
+      "content": "Suggest 2-4 relevant labels based on: issue type (bug/feature/enhancement/docs), affected component or area (API/UI/search/database/etc), severity if applicable (critical/high/medium/low). For priority, consider: Does it block users? How many users affected? Is there a workaround? Critical = blocks many users, no workaround; High = significant impact or many affected; Medium = moderate impact; Low = nice-to-have or minimal impact."
+    },
+    {
+      "id": "p3",
+      "kind": "instructions",
+      "content": "Recommend a next step or owner: For bugs with clear repro steps, suggest assignment to the component owner or engineering team. For feature requests, suggest product review or community feedback gathering. For issues needing more info, suggest requesting reproduction steps, logs, environment details, or use cases. For critical issues, recommend immediate escalation."
+    },
+    {
+      "id": "p4",
+      "kind": "instructions",
+      "content": "Format your response as: **Labels:** label1, label2, label3\n**Priority:** [Critical/High/Medium/Low] - brief justification\n**Next Step:** who should handle it and what action (assign to X team, request more details, escalate, etc)\n**Reasoning:** 1-2 sentence summary of why you chose this triage."
+    }
+  ],
+  "created_at": "2026-10-24T11:31:51.419505-07:00",
+  "stats": {
+    "hits": 4,
+    "avg_quality": null,
+    "savings_usd": 0.0
+  }
+}

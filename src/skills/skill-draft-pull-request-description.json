@@ -1,0 +1,34 @@
+{
+  "id": "skill-draft-pull-request-description",
+  "name": "draft_pull_request_description",
+  "responsibility": "Generate a structured pull request description from branch metadata and code changes",
+  "trigger_description": "When asked to write, draft, or create a PR description, pull request summary, or merge request description from commit history and diffs.",
+  "parts": [
+    {
+      "id": "p1",
+      "kind": "instructions",
+      "content": "Extract key information from the PR context: (1) Branch names and direction (source -> target), (2) List of commits with their prefixes (feat/fix/chore/refactor/test/docs), (3) Files changed count and net line delta, (4) Primary functional changes from the diff snippets. Identify the main theme or purpose that unifies all commits."
+    },
+    {
+      "id": "p2",
+      "kind": "instructions",
+      "content": "Structure the description with these sections: **Summary** (2-3 sentences explaining what and why), **Changes** (bulleted list of concrete modifications grouped by area, using commit messages as guidance), **Testing** (mention test files added or note if testing approach should be described). Use clear, professional tone. Lead with user/system impact, not implementation details."
+    },
+    {
+      "id": "p3",
+      "kind": "instructions",
+      "content": "Format output as GitHub-flavored Markdown. Use `code` for technical terms, file paths, and function names. Keep bullets parallel in structure. If the PR includes breaking changes, dependency updates, or infrastructure changes, call these out explicitly in relevant sections."
+    },
+    {
+      "id": "p4",
+      "kind": "instructions",
+      "content": "Edge cases: (1) For single-commit PRs, create a fuller description expanding on the commit message, (2) For large refactors (>10 files), focus on architectural changes over file-by-file details, (3) If diff shows only deletions or only additions, explain the removal or introduction context, (4) When test files dominate the change count, emphasize test coverage in the summary."
+    }
+  ],
+  "created_at": "2026-10-24T11:33:15.509430-07:00",
+  "stats": {
+    "hits": 8,
+    "avg_quality": null,
+    "savings_usd": 0.0
+  }
+}

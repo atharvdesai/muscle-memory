@@ -31,7 +31,7 @@ from src.runner.executor import run_frontier             # noqa: E402
 from src.runner.llm import LLMClient                     # noqa: E402
 
 ABLATION_LOG = pathlib.Path("src/traces/ablation.jsonl")
-ROUTE_TRACES = "src/traces/ablation_routes.jsonl"  # router traces for this arm, NOT runs.jsonl
+ROUTE_TRACES = pathlib.Path("src/traces/ablation_routes.jsonl")  # router traces for this arm, NOT runs.jsonl
 
 
 class CapturingGraph(DecisionGraph):

@@ -1,0 +1,34 @@
+{
+  "id": "skill-diagnose-error-from-stacktrace",
+  "name": "diagnose_error_from_stacktrace",
+  "responsibility": "Diagnose root cause and recommend fix from error stacktraces",
+  "trigger_description": "Explain an error, debug a crash, or interpret a stacktrace when error context and code snippets are provided.",
+  "parts": [
+    {
+      "id": "p1",
+      "kind": "instructions",
+      "content": "Read the stacktrace carefully to identify: (1) the exact line and operation that failed, (2) the exception/error type, (3) the immediate cause (null/nil dereference, index out of range, missing resource, etc.). Trace backward through the call stack to understand how execution reached the failure point."
+    },
+    {
+      "id": "p2",
+      "kind": "instructions",
+      "content": "Analyze the provided context to determine the root cause: look for unvalidated inputs, missing initialization, unchecked error returns, race conditions, or environmental assumptions. Distinguish between the symptom (the crash location) and the root cause (where the invalid state originated)."
+    },
+    {
+      "id": "p3",
+      "kind": "instructions",
+      "content": "Propose a specific fix that addresses the root cause: add validation/guards at the point where bad data enters, initialize required fields before use, check error returns before proceeding, or add defensive nil/bounds checks. Explain why the fix prevents recurrence."
+    },
+    {
+      "id": "p4",
+      "kind": "instructions",
+      "content": "Structure the response: (1) one-sentence summary of what failed, (2) root cause explanation referencing specific code locations, (3) recommended fix with code-level specificity (which file, function, what to add/change), (4) optional preventive measures if the pattern suggests systemic issues."
+    }
+  ],
+  "created_at": "2026-10-24T11:30:23.262483-07:00",
+  "stats": {
+    "hits": 3,
+    "avg_quality": null,
+    "savings_usd": 0.0
+  }
+}

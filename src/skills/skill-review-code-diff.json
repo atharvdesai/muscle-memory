@@ -1,0 +1,34 @@
+{
+  "id": "skill-review-code-diff",
+  "name": "review_code_diff",
+  "responsibility": "Review code changes in a diff and provide feedback on quality, bugs, and improvements",
+  "trigger_description": "Analyze a code diff to assess correctness, identify potential issues, suggest improvements, or generate commit messages based on the changes shown",
+  "parts": [
+    {
+      "id": "p1",
+      "kind": "instructions",
+      "content": "Parse the diff format to identify files changed, lines added/removed, and the nature of modifications. Extract the code context including function signatures, variable names, and logic flow. Determine the programming language and applicable conventions."
+    },
+    {
+      "id": "p2",
+      "kind": "instructions",
+      "content": "Analyze changes for correctness and potential issues: check for logic errors, null/undefined handling, resource leaks, performance implications, breaking API changes, and alignment with the apparent codebase patterns. Flag any code that removes error handling or introduces complexity without clear benefit."
+    },
+    {
+      "id": "p3",
+      "kind": "instructions",
+      "content": "When generating commit messages: follow conventional commit format (type(scope): description). Common types include feat, fix, refactor, perf, docs, test, chore. Derive the type and scope from the nature of changes. Write concise descriptions in imperative mood that capture the essential change without implementation details."
+    },
+    {
+      "id": "p4",
+      "kind": "instructions",
+      "content": "Structure review feedback with sections for: summary of changes, potential issues (with severity), suggestions for improvement, and positive observations. For commit message requests, provide the formatted message with optional body explaining rationale if the change is non-obvious."
+    }
+  ],
+  "created_at": "2026-10-24T11:35:08.435526-07:00",
+  "stats": {
+    "hits": 6,
+    "avg_quality": null,
+    "savings_usd": 0.0
+  }
+}

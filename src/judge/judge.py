@@ -41,6 +41,7 @@ class SideResult:
     quality_score: float                # weighted, normalized [0, 1]
     rationales: list[str] = field(default_factory=list)
     member_scores: list[float] = field(default_factory=list)  # per-stance weighted quality
+    member_models: list[str] = field(default_factory=list)    # model each stance ran on
 
 
 @dataclass
@@ -95,10 +96,10 @@ class Judge:
         skill_ps, frontier_ps = self._panel.score_pair(task, skill_output, frontier_output)
         skill = SideResult("skill", skill_output, skill_ps.dim_scores,
                            weighted_quality(skill_ps.dim_scores), skill_ps.rationales,
-                           skill_ps.member_qualities)
+                           skill_ps.member_qualities, skill_ps.member_models)
         frontier = SideResult("frontier", frontier_output, frontier_ps.dim_scores,
                               weighted_quality(frontier_ps.dim_scores), frontier_ps.rationales,
-                              frontier_ps.member_qualities)
+                              frontier_ps.member_qualities, frontier_ps.member_models)
         delta = skill.quality_score - frontier.quality_score
         winner = "tie" if abs(delta) < self.config.tie_margin else ("skill" if delta > 0 else "frontier")
         members = max(skill_ps.members_used, frontier_ps.members_used)
