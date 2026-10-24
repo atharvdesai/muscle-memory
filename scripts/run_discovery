@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+"""Run one offline discovery batch over the trace history.
+
+Usage:
+    python scripts/run_discovery [--tasks src/corpus/tasks.json]
+                                 [--traces src/traces/runs.jsonl]
+                                 [--skills src/skills]
+                                 [--mock] [--dry-run]
+                                 [--min-cluster-size 3]
+                                 [--distance-threshold 0.35]
+                                 [--max-candidates 5]
+
+With no API keys (or --mock), everything runs deterministically offline:
+hashing embeddings + MockLLM. The judge panel and runner are imported from
+src.judge / src.runner when present; without them candidates are filed under
+src/skills/_candidates/ as pending - the promotion gate is never faked.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.discovery import run_discovery  # noqa: E402
+from src.discovery.gate import JudgeFn, RunFrontierFn, RunSkillFn  # noqa: E402
+
+
+def _load_judge() -> JudgeFn | None:
+    """Adapt whatever the proof agent ships into the judge_pair contract."""
+    try:
+        from src.judge import judge_pair  # preferred contract
+
+        return judge_pair
+    except ImportError:
+        pass
+    try:
+        from src.judge import JudgePanel  # class-based fallback
+
+        panel = JudgePanel()
+
+        def judge(task: dict, frontier_output: str, skill_output: str) -> dict:
+            v = panel.compare(task, frontier_output, skill_output)
+            if isinstance(v, dict):
+                return v
+            return {
+                "score": float(getattr(v, "score")),
+                "passed": bool(getattr(v, "passed")),
+                "rationale": str(getattr(v, "rationale", "")),
+            }
+
+        return judge
+    except ImportError:
+        return None
+
+
+def _load_runners() -> tuple[RunFrontierFn | None, RunSkillFn | None]:
+    try:
+        from src.runner import run_frontier_path, run_skill_path
+
+        return run_frontier_path, run_skill_path
+    except ImportError:
+        return None, None
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Offline skill discovery batch")
+    ap.add_argument("--tasks", default="src/corpus/tasks.json")
+    ap.add_argument("--traces", default="src/traces/runs.jsonl")
+    ap.add_argument("--skills", default="src/skills")
+    ap.add_argument("--mock", action="store_true", help="force deterministic mock mode")
+    ap.add_argument("--dry-run", action="store_true", help="decide everything, write nothing")
+    ap.add_argument("--min-cluster-size", type=int, default=3)
+    ap.add_argument("--distance-threshold", type=float, default=0.35)
+    ap.add_argument("--max-candidates", type=int, default=5)
+    ap.add_argument("--validation-tasks", type=int, default=3)
+    ap.add_argument("--min-judge-score", type=float, default=0.75)
+    ap.add_argument("--merge-threshold", type=float, default=0.80)
+    ap.add_argument("--reject-threshold", type=float, default=0.92)
+    args = ap.parse_args()
+
+    judge = _load_judge()
+    run_frontier, run_skill = _load_runners()
+
+    report = run_discovery(
+        args.tasks,
+        args.traces,
+        args.skills,
+        judge=judge,
+        run_frontier=run_frontier,
+        run_skill=run_skill,
+        mock=True if args.mock else None,
+        min_cluster_size=args.min_cluster_size,
+        distance_threshold=args.distance_threshold,
+        max_candidates=args.max_candidates,
+        validation_tasks=args.validation_tasks,
+        min_judge_score=args.min_judge_score,
+        merge_threshold=args.merge_threshold,
+        reject_threshold=args.reject_threshold,
+        dry_run=args.dry_run,
+    )
+
+    summary = {
+        "llm": report.llm,
+        "embedder": report.embedder,
+        "clusters_found": report.clusters_found,
+        "promoted": report.promoted,
+        "merged": report.merged,
+        "rejected": report.rejected,
+        "pending": report.pending,
+        "dry_run": report.dry_run,
+    }
+    if judge is None:
+        summary["note"] = "no judge importable from src.judge: candidates held pending, gate not bypassed"
+    elif run_frontier is None:
+        summary["note"] = "no runner importable from src.runner: savings not measured, candidates held pending"
+    print(json.dumps(summary, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
