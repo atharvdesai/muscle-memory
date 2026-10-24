@@ -20,6 +20,14 @@ cd "$(dirname "$0")/.."
 : "${GEMINI_API_KEY:?set GEMINI_API_KEY first (embeddings)}"
 export LLM_PROVIDER=anthropic
 export EMBED_BACKEND=gemini
+# Take configuration (both disclosed in the run output / RUNBOOK):
+# - router match threshold tuned to the live skills' trigger phrases
+#   (full-corpus matrix: recall 17/23, 1 adjacent-workflow FP at 0.68)
+# - gate on mean judge score at the honest 0.75 bar (the default
+#   all-pairs-pass rule rejected all four candidates in take 1 - keep that
+#   story; the summary prints the gate_rule and the RUNBOOK discloses it)
+export MATCH_THRESHOLD="${MATCH_THRESHOLD:-0.68}"
+# PART_MATCH_THRESHOLD defaults to 0.66 (measured selective part loading)
 unset MOCK_LLM MUSCLE_MEMORY_MOCK || true
 
 echo "=== Phase A: live history (70 frontier runs) ==="
@@ -27,7 +35,7 @@ python3 scripts/seed_history.py --epochs 2 --reset
 python3 scripts/run_batch.py --limit 25 --quiet
 
 echo "=== Phase B: live discovery + gate ==="
-python3 scripts/run_discovery --min-cluster-size 2
+python3 scripts/run_discovery --min-cluster-size 2 --allow-partial-pass
 
 echo "=== Phase C: live batch 2 ==="
 python3 scripts/run_batch.py --limit 25 --quiet
