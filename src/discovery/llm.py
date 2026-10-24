@@ -15,6 +15,7 @@ import hashlib
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 from collections import Counter
@@ -34,20 +35,35 @@ class BaseLLM:
         raise NotImplementedError
 
 
-def _post_json(url: str, headers: dict, payload: dict, timeout: int = 90) -> dict:
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", **headers},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        raise LLMError(f"{url} -> HTTP {e.code}: {e.read()[:500]!r}") from e
-    except urllib.error.URLError as e:
-        raise LLMError(f"{url} -> {e}") from e
+def _post_json(url: str, headers: dict, payload: dict, timeout: int = 90,
+               max_retries: int = 4) -> dict:
+    delay = 2.0
+    for attempt in range(max_retries + 1):
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", **headers},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            # 429 (free tier is 5 req/min) and 5xx get backoff honoring
+            # Retry-After; anything else is raised immediately.
+            if (e.code == 429 or 500 <= e.code < 600) and attempt < max_retries:
+                body = e.read()[:500]
+                retry_after = e.headers.get("Retry-After") if e.headers else None
+                try:
+                    wait = float(retry_after) if retry_after else delay
+                except ValueError:
+                    wait = delay
+                time.sleep(min(wait, 60.0))
+                delay *= 2
+                continue
+            raise LLMError(f"{url} -> HTTP {e.code}: {e.read()[:500]!r}") from e
+        except urllib.error.URLError as e:
+            raise LLMError(f"{url} -> {e}") from e
 
 
 class AnthropicLLM(BaseLLM):
@@ -112,7 +128,12 @@ class GeminiLLM(BaseLLM):
             {
                 "system_instruction": {"parts": [{"text": system}]},
                 "contents": [{"role": "user", "parts": [{"text": user}]}],
-                "generationConfig": {"maxOutputTokens": max_tokens},
+                "generationConfig": {
+                    # proposals are strict JSON; thinking burns the output
+                    # budget on Gemini 3 and truncates the JSON mid-string
+                    "maxOutputTokens": max(max_tokens, 4096),
+                    "thinkingConfig": {"thinkingBudget": 0},
+                },
             },
         )
         parts = (

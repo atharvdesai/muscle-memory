@@ -1,14 +1,282 @@
 [
-  {"id": "t01", "type": "summarize", "prompt": "Summarize this support ticket into three bullet points.", "context": "Ticket: user cannot log in after password reset; error 4101; tried Chrome and Safari."},
-  {"id": "t02", "type": "summarize", "prompt": "Summarize the following customer email in three bullets.", "context": "Email: billing charged twice in October; wants refund and confirmation."},
-  {"id": "t03", "type": "summarize", "prompt": "Give me a three-bullet summary of this bug report.", "context": "Report: mobile app crashes on launch after v2.3 update on Android 14."},
-  {"id": "t04", "type": "summarize", "prompt": "Summarize this escalation note into three key bullets.", "context": "Note: enterprise client threatening churn over SLA misses in Q3."},
-  {"id": "t05", "type": "extract", "prompt": "Extract all dates and dollar amounts from this invoice email.", "context": "Invoice #4412 dated 2026-09-30 for $1,240.00, due 2026-10-30; late fee $50."},
-  {"id": "t06", "type": "extract", "prompt": "Pull the dates and monetary amounts out of this receipt text.", "context": "Receipt: 2026-10-01, subtotal $86.20, tax $7.75, total $93.95."},
-  {"id": "t07", "type": "extract", "prompt": "List every date and amount mentioned in this payment reminder.", "context": "Reminder: balance of $410.00 due 2026-10-15; autopay runs 2026-10-14."},
-  {"id": "t08", "type": "extract", "prompt": "Extract dates and dollar figures from this contract clause.", "context": "Clause: term begins 2027-01-01; fee $5,000 per quarter; penalty 2% per month."},
-  {"id": "t09", "type": "oneoff", "prompt": "Write a haiku about quarterly planning."},
-  {"id": "t10", "type": "oneoff", "prompt": "Convert this paragraph to a limerick for the team offsite invite.", "context": "The offsite is in Monterey on Friday."},
-  {"id": "t11", "type": "oneoff", "prompt": "Suggest a name for our new office dog."},
-  {"id": "t12", "type": "oneoff", "prompt": "Draft a 280-character post congratulating Priya on her patent."}
+  {
+    "id": "task-0001",
+    "type": "commit_message",
+    "prompt": "Write a commit message for this diff.",
+    "context": "diff --git a/api/rate_limit.py b/api/rate_limit.py\nindex 3f2a1c4..9b77e21 100644\n--- a/api/rate_limit.py\n+++ b/api/rate_limit.py\n@@ -41,7 +41,10 @@ class RateLimiter:\n     def allow(self, key: str) -> bool:\n         bucket = self._buckets.get(key)\n-        if bucket is None:\n-            bucket = TokenBucket(self.capacity)\n-        return bucket.try_consume(1)\n+        now = time.monotonic()\n+        if bucket is None or bucket.expired(now):\n+            bucket = TokenBucket(self.capacity, ttl=self.ttl)\n+            self._buckets[key] = bucket\n+        return bucket.try_consume(1, now=now)\n \n-    # stale buckets never cleaned up\n+    def sweep(self, now: float) -> int:\n+        stale = [k for k, b in self._buckets.items() if b.expired(now)]\n+        for k in stale:\n+            del self._buckets[k]\n+        return len(stale)",
+    "expected": "fix(rate-limit): expire and sweep stale token buckets"
+  },
+  {
+    "id": "task-0002",
+    "type": "pr_description",
+    "prompt": "Write a pull request description for this change.",
+    "context": "PR: Add webhook delivery retries with exponential backoff\nBranch: feat/webhook-retries -> main\nCommits:\n- feat(webhooks): add retry queue backed by Redis\n- feat(webhooks): exponential backoff with jitter (max 5 attempts)\n- test(webhooks): retry schedule unit tests\nFiles changed: 8 (+612 -84)\nKey diff (webhooks/deliver.py):\n-    resp = session.post(endpoint, json=payload, timeout=5)\n-    resp.raise_for_status()\n+    for attempt in range(MAX_ATTEMPTS):\n+        try:\n+            resp = session.post(endpoint, json=payload, timeout=5)\n+            resp.raise_for_status()\n+            return Delivery(ok=True, attempts=attempt + 1)\n+        except RequestException as exc:\n+            sleep(backoff_with_jitter(attempt))\n+    return Delivery(ok=False, attempts=MAX_ATTEMPTS, last_error=str(exc))",
+    "expected": "Summary: adds retry with exponential backoff for failed webhook deliveries. Changes: Redis-backed retry queue, backoff w/ jitter capped at 5 attempts, unit tests. Testing: pytest webhooks/."
+  },
+  {
+    "id": "task-0003",
+    "type": "stack_trace_explainer",
+    "prompt": "Explain this error and how to fix it.",
+    "context": "Traceback (most recent call last):\n  File \"pipeline/ingest.py\", line 87, in run\n    records = [parse(line) for line in fh]\n  File \"pipeline/ingest.py\", line 52, in parse\n    return {\"ts\": datetime.fromisoformat(parts[0]), \"msg\": parts[1]}\nIndexError: list index out of range\n\nThe input file occasionally contains blank lines. Started failing after we\nswitched log shippers.",
+    "expected": "parse() splits each line and assumes two fields; blank lines produce a one-element list, so parts[1] raises IndexError. Skip blank lines or guard on len(parts) before indexing."
+  },
+  {
+    "id": "task-0004",
+    "type": "issue_triage",
+    "prompt": "Triage this GitHub issue: suggest labels, priority, and next step.",
+    "context": "Title: Search returns stale results after renaming a doc\nBody: After renaming a document, searching for the OLD name still returns\nthe document for ~5 minutes. Searching the new name returns nothing during\nthat window. Repro: rename any doc, immediately search old name. Expected:\nsearch reflects renames within seconds. Version: v2.4.1, self-hosted,\ndefault config (indexer poll interval 300s).",
+    "expected": "Labels: bug, search, indexer. Priority P2. Root cause is the 300s indexer poll; next step: reproduce, then either document the lag or add event-driven reindex on rename."
+  },
+  {
+    "id": "task-0005",
+    "type": "unit_test_writer",
+    "prompt": "Write unit tests for this function.",
+    "context": "def clamp_discount(pct: float, *, member: bool) -> float:\n    \"\"\"Clamp a discount percentage to allowed bounds.\n    Members: 0-40%. Non-members: 0-15%. Negative input clamps to 0.\n    Anything above the cap clamps to the cap.\"\"\"\n    cap = 40.0 if member else 15.0\n    return min(max(pct, 0.0), cap)\n\nUse pytest. Cover the boundaries and both member states.",
+    "expected": "pytest cases: below 0 clamps to 0, within range passes through, above cap clamps to cap, for both member=True (cap 40) and member=False (cap 15), plus exact boundary values 0/15/40."
+  },
+  {
+    "id": "task-0006",
+    "type": "changelog_entry",
+    "prompt": "Write a changelog entry for this release.",
+    "context": "Release v2.5.0 - merged PRs:\n#412 feat: add webhook delivery retries with exponential backoff\n#418 feat: CSV export for usage reports\n#420 fix: N+1 queries on team members endpoint\n#421 fix: return 400 instead of 500 when user id param is missing\n#423 chore: migrate session store from memcached to Redis\nStyle: Keep a Changelog, sections Added/Fixed/Changed.",
+    "expected": "## [2.5.0] Added: webhook retries with backoff (#412), CSV usage export (#418). Fixed: N+1 on team members (#420), 400 for missing user id (#421). Changed: sessions on Redis (#423)."
+  },
+  {
+    "id": "task-0007",
+    "type": "code_review",
+    "prompt": "Review this diff: flag bugs, risks, and missing tests.",
+    "context": "diff --git a/billing/invoices.py b/billing/invoices.py\n@@ -58,6 +58,14 @@ def finalize_invoice(invoice_id: str) -> Invoice:\n     invoice = store.get(invoice_id)\n+    for line in invoice.lines:\n+        if line.discount_pct > 0:\n+            line.total = line.total * (1 - line.discount_pct / 100)\n     invoice.total = sum(l.total for l in invoice.lines)\n-    invoice.status = \"finalized\"\n+    invoice.status = \"final\"\n     store.save(invoice)\n+    send_receipt_email(invoice.customer_email, invoice)\n     return invoice",
+    "expected": "Findings: status value changed 'finalized' -> 'final' (breaks anything filtering on 'finalized'); discounts applied on every call, so re-finalizing double-discounts; send_receipt_email fires before save failure is handled and has no retry; no test for the discount path."
+  },
+  {
+    "id": "task-0008",
+    "type": "one_off/regex_explain",
+    "prompt": "Explain what this regex does, piece by piece.",
+    "context": "^(?P<ts>\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\s+\\[(?P<level>\\w+)\\]\\s+(?P<msg>.*)$",
+    "expected": "Named groups: ts matches an ISO-like timestamp, level matches a bracketed word, msg captures the rest of the line."
+  },
+  {
+    "id": "task-0009",
+    "type": "commit_message",
+    "prompt": "Can you write a good commit message for the following diff?",
+    "context": "diff --git a/web/src/components/Avatar.tsx b/web/src/components/Avatar.tsx\nindex 81aa0b2..c41d9f8 100644\n--- a/web/src/components/Avatar.tsx\n+++ b/web/src/components/Avatar.tsx\n@@ -12,9 +12,12 @@ export function Avatar({ user, size = 32 }: Props) {\n-  return <img src={user.avatarUrl} width={size} height={size} />;\n+  const [failed, setFailed] = useState(false);\n+  if (failed || !user.avatarUrl) {\n+    return <InitialsBadge name={user.displayName} size={size} />;\n+  }\n+  return (\n+    <img src={user.avatarUrl} width={size} height={size}\n+         alt={user.displayName}\n+         onError={() => setFailed(true)} />\n+  );\n }",
+    "expected": "fix(avatar): fall back to initials badge when avatar image fails to load"
+  },
+  {
+    "id": "task-0010",
+    "type": "pr_description",
+    "prompt": "Draft a PR description covering summary, changes, and testing for this diff.",
+    "context": "PR: Migrate session store from memcached to Redis\nBranch: chore/session-redis -> main\nCommits:\n- chore(deps): add redis-py, remove pymemcache\n- refactor(sessions): SessionStore protocol + RedisSessionStore\n- chore(infra): docker-compose service for redis\nFiles changed: 14 (+388 -401)\nKey diff (sessions/store.py):\n-class MemcachedSessionStore:\n-    def get(self, sid): return self._mc.get(f\"sess:{sid}\")\n+class RedisSessionStore:\n+    def get(self, sid):\n+        raw = self._redis.get(f\"sess:{sid}\")\n+        return json.loads(raw) if raw else None\nRollback plan: revert merge, sessions are re-issued on login anyway.",
+    "expected": "Summary: migrates session storage to Redis behind a SessionStore protocol. Changes: redis-py dep, RedisSessionStore, docker-compose redis service. Testing: session integration suite. Rollback: revert; sessions re-issue on login."
+  },
+  {
+    "id": "task-0011",
+    "type": "stack_trace_explainer",
+    "prompt": "What does this stack trace mean and what's the fix?",
+    "context": "TypeError: Cannot read properties of undefined (reading 'map')\n    at OrderSummary (webpack://app/src/components/OrderSummary.tsx:24:31)\n    at renderWithHooks (webpack://app/node_modules/react-dom/cjs/react-dom.development.js:16305:18)\n    at mountIndeterminateComponent (webpack://app/node_modules/react-dom/cjs/react-dom.development.js:20074:13)\n\nComponent code:\n  function OrderSummary({ order }) {\n    return <ul>{order.items.map(i => <li key={i.sku}>{i.name}</li>)}</ul>;\n  }\n\nHappens right after checkout redirect, before the order poll resolves.",
+    "expected": "order.items is undefined on the first render after redirect because the order prop hasn't loaded yet. items.map runs unconditionally. Guard with optional chaining/default (order?.items ?? []) or render a loading state until the order resolves."
+  },
+  {
+    "id": "task-0012",
+    "type": "issue_triage",
+    "prompt": "Help me triage this incoming bug report.",
+    "context": "Title: App crashes on launch after update to 3.1.0\nBody: Updated via Homebrew this morning, now the app crashes immediately\non launch. macOS 14.5, Apple Silicon. Crash log attached - top frame is\nin keychain access (SecItemCopyMatching). Workaround: downgrading to\n3.0.4 fixes it. 14 thumbs-up, 6 comments confirming same crash on M-series\nmachines.",
+    "expected": "Labels: bug, crash, regression, macos, P0-candidate. Priority P0: startup crash hitting all updated Apple Silicon users. Next step: bisect the keychain access change between 3.0.4 and 3.1.0 and ship a hotfix."
+  },
+  {
+    "id": "task-0013",
+    "type": "unit_test_writer",
+    "prompt": "Add unit tests covering the edge cases of this class.",
+    "context": "class RingBuffer:\n    def __init__(self, capacity: int):\n        if capacity <= 0:\n            raise ValueError(\"capacity must be positive\")\n        self._buf, self._head, self._size = [None] * capacity, 0, 0\n    def push(self, item):\n        self._buf[self._head] = item\n        self._head = (self._head + 1) % len(self._buf)\n        self._size = min(self._size + 1, len(self._buf))\n    def items(self):\n        if self._size < len(self._buf):\n            return self._buf[:self._size]\n        return self._buf[self._head:] + self._buf[:self._head]\n\nCover: empty buffer, fill to capacity, overwrite past capacity (order\npreserved), and invalid capacity.",
+    "expected": "pytest cases: empty -> []; pushes up to capacity preserve insertion order; push beyond capacity evicts oldest and items() returns oldest-to-newest; capacity 0 and -1 raise ValueError."
+  },
+  {
+    "id": "task-0014",
+    "type": "changelog_entry",
+    "prompt": "Draft release notes from these merged PRs.",
+    "context": "Release v3.1.1 (patch) - merged PRs:\n#502 fix: startup crash on Apple Silicon caused by keychain entitlement\n#505 fix: search index lag after document rename (poll 300s -> 5s)\n#507 docs: clarify self-hosted indexer configuration\nAudience: end users, keep it non-technical.",
+    "expected": "## [3.1.1] Fixed: app no longer crashes on launch for Apple Silicon Macs; renamed documents now appear in search within seconds. Docs: clearer self-hosted indexer setup."
+  },
+  {
+    "id": "task-0015",
+    "type": "code_review",
+    "prompt": "Do a code review pass on this change.",
+    "context": "diff --git a/auth/tokens.py b/auth/tokens.py\n@@ -12,7 +12,7 @@ def issue_token(user_id: str) -> str:\n     payload = {\"sub\": user_id, \"iat\": now}\n-    payload[\"exp\"] = now + 3600\n+    payload[\"exp\"] = now + 60 * 60 * 24 * 30\n-    return jwt.encode(payload, SECRET, algorithm=\"HS256\")\n+    return jwt.encode(payload, SECRET, algorithm=\"HS256\", headers={\"kid\": \"v1\"})",
+    "expected": "Findings: token lifetime silently extended 1h -> 30d (security regression, needs justification + config); kid header added without a key-rotation story; no test asserting the new expiry or header."
+  },
+  {
+    "id": "task-0016",
+    "type": "one_off/git_reflog",
+    "prompt": "I deleted a branch with unmerged commits. How do I get it back?",
+    "context": "Branch was 'feat/payment-retry', deleted with -D about an hour ago. Last thing I remember committing was 'add jitter to backoff'.",
+    "expected": "Use git reflog to find the branch tip SHA, then git branch feat/payment-retry <sha> (or git checkout -b). Reflog keeps ~90 days of HEAD history."
+  },
+  {
+    "id": "task-0017",
+    "type": "commit_message",
+    "prompt": "Generate a conventional commit message for this change:",
+    "context": "diff --git a/crates/index/src/search.rs b/crates/index/src/search.rs\nindex 0f3d2aa..77bc1e9 100644\n--- a/crates/index/src/search.rs\n+++ b/crates/index/src/search.rs\n@@ -88,7 +88,7 @@ impl Index {\n     pub fn query(&self, q: &str) -> Vec<DocId> {\n-        let mut hits: Vec<_> = self.docs.iter()\n-            .filter(|d| d.text.contains(q)).collect();\n+        let postings = self.term_map.get(q);\n+        let mut hits: Vec<_> = postings.cloned().unwrap_or_default();\n         hits.sort_by_key(|d| Reverse(self.score(d)));\n         hits\n     }",
+    "expected": "perf(index): replace full scan with postings lookup in query path"
+  },
+  {
+    "id": "task-0018",
+    "type": "pr_description",
+    "prompt": "Please write the PR body for this feature branch.",
+    "context": "PR: Dark mode for settings pages\nBranch: feat/dark-mode-settings -> main\nCommits:\n- feat(theme): add ThemeProvider with system/light/dark\n- feat(settings): convert settings pages to theme tokens\n- test(theme): visual regression snapshots for both modes\nFiles changed: 22 (+540 -210)\nScreenshots: attached (settings-light.png, settings-dark.png)\nNotes: prefers-color-scheme is the default; a manual toggle lives in\nSettings > Appearance. LocalStorage persists the override.",
+    "expected": "Summary: dark mode for settings pages via ThemeProvider and theme tokens. Changes: ThemeProvider (system/light/dark), settings pages on tokens, snapshot tests. Testing: visual regression in both modes."
+  },
+  {
+    "id": "task-0019",
+    "type": "stack_trace_explainer",
+    "prompt": "Debug this crash: explain the root cause and suggest a fix.",
+    "context": "Exception in thread \"pool-2-thread-3\" java.lang.NullPointerException: Cannot invoke \"com.acme.billing.Plan.getQuota()\" because \"this.plan\" is null\n\tat com.acme.billing.UsageMeter.record(UsageMeter.java:64)\n\tat com.acme.billing.EventConsumer.onEvent(EventConsumer.java:41)\n\nUsageMeter is constructed in two places; the new EventConsumer path never\ncalls setPlan() before record().",
+    "expected": "UsageMeter.plan is null on the EventConsumer construction path because setPlan() is never called there, and record() dereferences it. Initialize plan in the constructor (or look it up in record) and fail fast when it is absent."
+  },
+  {
+    "id": "task-0020",
+    "type": "issue_triage",
+    "prompt": "Suggest labels and a priority for this issue.",
+    "context": "Title: Feature request: export dashboard as PDF\nBody: We share weekly metrics with leadership over email. Right now we\ntake screenshots of 6 charts and stitch them. A one-click PDF export of\nthe dashboard (respecting current filters and date range) would save the\nteam ~30 min/week. Nice to have, not blocking anything.",
+    "expected": "Labels: enhancement, reporting. Priority P3 (feature request with a working workaround). Next step: scope effort; consider print-stylesheet MVP before full PDF rendering."
+  },
+  {
+    "id": "task-0021",
+    "type": "unit_test_writer",
+    "prompt": "Write a pytest suite for this utility, including failure modes.",
+    "context": "def parse_retry_header(value: str | None) -> int | None:\n    \"\"\"Parse a Retry-After header into seconds.\n    Returns None when the header is absent or unparseable.\n    Supports integer seconds only (not HTTP dates).\"\"\"\n    if value is None:\n        return None\n    value = value.strip()\n    if not value.isdigit():\n        return None\n    return int(value)",
+    "expected": "pytest cases: None -> None; '30' -> 30; ' 45 ' -> 45; 'abc' -> None; '' -> None; '3.5' -> None; an HTTP-date string -> None (unsupported); large integer passes through."
+  },
+  {
+    "id": "task-0022",
+    "type": "changelog_entry",
+    "prompt": "Turn this merge list into a proper changelog section.",
+    "context": "Release v1.9.0 - merged PRs:\n#88 feat(api): cursor-based pagination on /v1/orders (deprecates offset)\n#91 feat(api): include customer.email in order payload\n#94 fix(api): 500 when filtering by non-ASCII customer names\n#95 security: upgrade jsonwebtoken 8.x -> 9.x (CVE-2022-23529 et al.)\nStyle: Keep a Changelog; include a Security section; note deprecations.",
+    "expected": "## [1.9.0] Added: cursor pagination on /v1/orders, customer.email in order payload. Fixed: 500 filtering non-ASCII names. Security: jsonwebtoken 9.x. Deprecated: offset pagination on /v1/orders."
+  },
+  {
+    "id": "task-0023",
+    "type": "code_review",
+    "prompt": "Please review this PR diff before I merge it.",
+    "context": "diff --git a/search/indexer.py b/search/indexer.py\n@@ -33,9 +33,7 @@ def reindex(doc_ids: list[str]) -> None:\n     for doc_id in doc_ids:\n-        doc = store.load(doc_id)\n-        if doc is None:\n-            continue\n-        index.upsert(doc_id, extract_terms(doc))\n+        docs = store.load_many(doc_ids)\n+        for doc in docs:\n+            index.upsert(doc.id, extract_terms(doc))\n     index.flush()",
+    "expected": "Findings: load_many is called inside the loop over doc_ids (batch load repeated per id - likely a bug, hoist it out); the old None-skip guard is gone, so missing docs may crash extract_terms; behavior differs when load_many silently drops missing ids. Needs a test with a missing doc id."
+  },
+  {
+    "id": "task-0024",
+    "type": "one_off/sql_query",
+    "prompt": "Write a SQL query for this report.",
+    "context": "Tables: orders(id, customer_id, total_cents, created_at), customers(id, name, country). Report: top 10 customers by total spend in the last 90 days, with order counts, US customers only.",
+    "expected": "SELECT c.name, COUNT(o.id) AS orders, SUM(o.total_cents) AS spend FROM orders o JOIN customers c ON c.id=o.customer_id WHERE c.country='US' AND o.created_at >= CURRENT_DATE - INTERVAL '90 days' GROUP BY c.name ORDER BY spend DESC LIMIT 10;"
+  },
+  {
+    "id": "task-0025",
+    "type": "commit_message",
+    "prompt": "What's a good git commit message for this diff? Keep it conventional.",
+    "context": "diff --git a/internal/http/handlers/users.go b/internal/http/handlers/users.go\nindex a1b2c3d..e4f5a6b 100644\n--- a/internal/http/handlers/users.go\n+++ b/internal/http/handlers/users.go\n@@ -30,6 +30,11 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {\n \tid := chi.URLParam(r, \"id\")\n+\tif id == \"\" {\n+\t\twriteError(w, http.StatusBadRequest, \"missing user id\")\n+\t\treturn\n+\t}\n \tu, err := h.store.FindUser(r.Context(), id)\n \tif errors.Is(err, store.ErrNotFound) {\n \t\twriteError(w, http.StatusNotFound, \"user not found\")",
+    "expected": "fix(users): return 400 when user id param is empty"
+  },
+  {
+    "id": "task-0026",
+    "type": "pr_description",
+    "prompt": "Write a clear PR description reviewers can act on.",
+    "context": "PR: Fix N+1 queries on the team members endpoint\nBranch: perf/team-members-n1 -> main\nCommits:\n- perf(teams): eager-load member profiles with selectinload\n- test(teams): assert query count on GET /teams/:id/members\nFiles changed: 3 (+96 -12)\nBefore: 1 + N queries (one per member); p95 820ms on a 200-member team.\nAfter: 2 queries; p95 61ms on the same fixture.\nKey diff (teams/repo.py):\n-    team = session.get(Team, team_id)\n-    return [m.profile for m in team.members]\n+    stmt = (select(Team).where(Team.id == team_id)\n+            .options(selectinload(Team.members).selectinload(Member.profile)))\n+    return session.execute(stmt).scalar_one().members",
+    "expected": "Summary: eliminates N+1 on GET /teams/:id/members. Changes: selectinload eager loading, query-count regression test. Testing: new query-count test; p95 820ms -> 61ms on 200-member fixture."
+  },
+  {
+    "id": "task-0027",
+    "type": "stack_trace_explainer",
+    "prompt": "Explain this panic and how I should fix it.",
+    "context": "thread 'tokio-runtime-worker' panicked at 'called `Option::unwrap()` on a `None` value', src/cache.rs:118:32\nstack backtrace:\n   6: core::panicking::panic\n   7: core::option::Option<T>::unwrap\n   8: cache::Store::get_or_compute\n   9: api::handlers::lookup\n\n118:     let entry = self.map.get(&key).unwrap();",
+    "expected": "get_or_compute unwraps map.get(&key) which returns None when the key is absent (cache miss). Replace unwrap with a match/if-let: on None, compute the value, insert it, and return it."
+  },
+  {
+    "id": "task-0028",
+    "type": "issue_triage",
+    "prompt": "Triage: labels, severity, and who should look first.",
+    "context": "Title: API returns 500 when filtering orders by emoji in customer name\nBody: GET /v1/orders?customer=Jos%C3%A9%20%F0%9F%8E%89 returns 500 with\n'UnicodeEncodeError: ascii codec can't encode character'. Orders with\nplain-ASCII names filter fine. Started after the Postgres 14 -> 16\nupgrade. Affects any customer with non-ASCII names (~8% of our base).",
+    "expected": "Labels: bug, api, encoding, regression. Priority P1: 500s for ~8% of customers after the Postgres upgrade. Next step: backend oncall - check client_encoding/collation change in the PG16 migration."
+  },
+  {
+    "id": "task-0029",
+    "type": "unit_test_writer",
+    "prompt": "Generate unit tests for this TypeScript function (vitest).",
+    "context": "export function formatRelativeTime(iso: string, now = new Date()): string {\n  const then = new Date(iso);\n  const s = Math.floor((now.getTime() - then.getTime()) / 1000);\n  if (Number.isNaN(s)) return \"unknown\";\n  if (s < 0) return \"in the future\";\n  if (s < 60) return `${s}s ago`;\n  if (s < 3600) return `${Math.floor(s / 60)}m ago`;\n  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;\n  return `${Math.floor(s / 86400)}d ago`;\n}",
+    "expected": "vitest cases: invalid date -> 'unknown'; future timestamp -> 'in the future'; 5s/59s -> 'Ns ago'; 90s -> '1m ago'; 2h -> '2h ago'; 3d -> '3d ago'; boundaries at 60/3600/86400 seconds."
+  },
+  {
+    "id": "task-0030",
+    "type": "changelog_entry",
+    "prompt": "Write the changelog for this week's release.",
+    "context": "Release v0.14.0 - merged PRs:\n#201 feat: dark mode for settings pages\n#204 feat: PDF export of dashboards\n#208 perf: dashboard initial load 3.2s -> 1.4s (bundle split + prefetch)\n#209 fix: avatar images 404 for users without a gravatar\nAudience: a public repo's users; keep the tone friendly and brief.",
+    "expected": "## [0.14.0] Added: dark mode for settings; one-click PDF export of dashboards. Improved: dashboards load over twice as fast (3.2s -> 1.4s). Fixed: missing avatars no longer 404."
+  },
+  {
+    "id": "task-0031",
+    "type": "one_off/docker_compose",
+    "prompt": "Why does my web service keep restarting in docker-compose?",
+    "context": "web:\n  build: .\n  command: python manage.py runserver 0.0.0.0:8000\n  depends_on: [db]\ndb:\n  image: postgres:16\nLogs show: django.db.utils.OperationalError: could not connect to server: Connection refused, then the container exits and restarts.",
+    "expected": "depends_on only waits for container start, not Postgres readiness. Add a healthcheck on db with condition: service_healthy (or a wait-for script) so web starts after Postgres accepts connections."
+  },
+  {
+    "id": "task-0032",
+    "type": "commit_message",
+    "prompt": "Write a commit message summarizing this diff.",
+    "context": "diff --git a/web/styles/dashboard.css b/web/styles/dashboard.css\nindex 22cc448..9d1e5f0 100644\n--- a/web/styles/dashboard.css\n+++ b/web/styles/dashboard.css\n@@ -14,8 +14,8 @@\n .sidebar {\n-  width: 240px;\n+  width: 264px;\n   background: var(--surface-1);\n-  overflow-y: scroll;\n+  overflow-y: auto;\n }\n+.sidebar::-webkit-scrollbar { width: 8px; }\n+.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }",
+    "expected": "style(dashboard): widen sidebar and restyle scrollbar"
+  },
+  {
+    "id": "task-0033",
+    "type": "pr_description",
+    "prompt": "Turn this branch into a proper PR description.",
+    "context": "PR: Add CSV export to the usage report\nBranch: feat/usage-csv-export -> main\nCommits:\n- feat(reports): /reports/usage.csv endpoint\n- feat(reports): stream rows with csv writer (constant memory)\n- test(reports): golden-file test for csv output\nFiles changed: 6 (+214 -18)\nDetails: respects the same date-range and team filters as the JSON\nendpoint. Content-Disposition: attachment. Columns: date, team, seats,\nactive_users, api_calls. Streams in 5k-row chunks so large ranges don't\nbuffer in memory.",
+    "expected": "Summary: adds CSV export for usage reports with the same filters as JSON. Changes: /reports/usage.csv endpoint, streaming writer, golden-file test. Testing: golden-file test over fixture ranges."
+  },
+  {
+    "id": "task-0034",
+    "type": "stack_trace_explainer",
+    "prompt": "Walk me through this stack trace and the likely fix.",
+    "context": "panic: runtime error: invalid memory address or nil pointer dereference\n[signal SIGSEGV: segmentation violation code=0x1 addr=0x20 pc=0x6f3a12]\n\ngoroutine 42 [running]:\nmain.(*Server).handleWebhook(0xc0000a2000, 0xc0001a8000)\n\t/app/server/webhook.go:57 +0x92\n\nwebhook.go:57:  if evt.Repo.Owner.Login == \"\" {\n\nevt comes from json.NewDecoder(r.Body).Decode(&evt) but we never check the\ndecode error; on bad JSON evt.Repo stays nil.",
+    "expected": "The handler ignores the JSON decode error, so a malformed body leaves evt.Repo nil and line 57 dereferences it. Check the Decode error and return 400 before touching evt fields."
+  },
+  {
+    "id": "task-0035",
+    "type": "one_off/bash_one_liner",
+    "prompt": "Give me a bash one-liner for this.",
+    "context": "I have ~4,000 .heic photos in ~/Photos/trip mixed with .jpg and .mov files. I want a list of just the .heic files sorted by size, largest first, showing human-readable sizes.",
+    "expected": "find ~/Photos/trip -maxdepth 1 -iname '*.heic' -exec du -h {} + | sort -rh"
+  },
+  {
+    "id": "task-0036",
+    "type": "one_off/http_status",
+    "prompt": "Which HTTP status code should this endpoint return?",
+    "context": "PUT /v1/documents/:id - creates the document when the id doesn't exist, fully replaces it when it does. Client supplies the full body both times. What should the success status be in each case, and why not 200 everywhere?",
+    "expected": "201 when created, 200 (or 204) when replaced. 201 + Location header signals resource creation; 200 everywhere hides whether a new resource was made, which clients and caches care about."
+  },
+  {
+    "id": "task-0037",
+    "type": "one_off/cron_explain",
+    "prompt": "What does this cron expression do?",
+    "context": "15 2 * * 1-5  /opt/jobs/rollup.sh --yesterday >> /var/log/rollup.log 2>&1   (server timezone is UTC)",
+    "expected": "At 02:15 UTC Monday-Friday: runs rollup.sh --yesterday, appending stdout and stderr to /var/log/rollup.log."
+  },
+  {
+    "id": "task-0038",
+    "type": "one_off/json_schema",
+    "prompt": "Design a JSON schema for this payload.",
+    "context": "Event payload for 'order.shipped': order id (uuid), tracking number (string, may be null), carrier enum (ups, fedex, usps, dhl), shipped_at ISO8601, items array of {sku, quantity>=1}, optional gift_message up to 280 chars.",
+    "expected": "JSON Schema with type object; required order_id(uuid format), carrier(enum), shipped_at(date-time), items(array of {sku, quantity minimum 1}); tracking_number as [string, null]; gift_message optional maxLength 280."
+  },
+  {
+    "id": "task-0039",
+    "type": "one_off/env_config",
+    "prompt": "Help me pick between these config approaches.",
+    "context": "12-person team, one Rails monolith, deploying to Heroku. Currently: a shared .env file in 1Password plus config/*.yml checked into git with real staging credentials. Considering dotenv per env, Rails credentials, or Heroku config vars only.",
+    "expected": "Use Heroku config vars as the source of truth for deployed envs and dotenv locally; stop checking real staging credentials into git (rotate them now). Rails credentials add little on Heroku."
+  },
+  {
+    "id": "task-0040",
+    "type": "one_off/yaml_anchors",
+    "prompt": "How do I DRY up this YAML with anchors?",
+    "context": "deploy-staging:\n  image: registry/ci:22\n  services: [postgres:16]\n  before_script: [apt-get update, make deps]\ndeploy-prod:\n  image: registry/ci:22\n  services: [postgres:16]\n  before_script: [apt-get update, make deps]\n  rules: [{if: $CI_COMMIT_BRANCH == \"main\"}]",
+    "expected": "Define a .deploy-base anchor (&deploy-base) holding image/services/before_script, then merge it into both jobs with <<: *deploy-base, keeping prod's rules key."
+  }
 ]
