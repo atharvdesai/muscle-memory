@@ -29,8 +29,8 @@ flowchart TD
 ## How the system learns
 
 ```mermaid
-flowchart LR
-    U[Usage: tasks routed + traced] --> D["Discovery: cluster history,<br/>propose atomic skills"]
+flowchart TD
+    U["Usage: tasks routed + traced"] --> D["Discovery: cluster history,<br/>propose atomic skills"]
     D --> O{"overlap check:<br/>merge or reject"}
     O --> G{"promotion gate: judge panel<br/>+ measured savings"}
     G -->|pass| S[(Skill store:<br/>atomic, non-overlapping)]
