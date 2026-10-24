@@ -23,7 +23,7 @@ cd "$(dirname "$0")/.."
 
 : "${GEMINI_API_KEY:?set GEMINI_API_KEY first}"
 export GEMINI_MODEL_CHEAP="${GEMINI_MODEL_CHEAP:-gemini-3-flash-preview}"
-export GEMINI_MODEL_FRONTIER="${GEMINI_MODEL_FRONTIER:-gemini-3.1-pro-preview}"
+export GEMINI_MODEL_FRONTIER="${GEMINI_MODEL_FRONTIER:-gemini-3-flash-preview}"  # take default: flash (3.1-pro has zero free quota); cost story rides on token counts
 export EMBED_BACKEND=gemini
 
 echo "=== Phase A: simulated traffic (0 API calls) ==="
