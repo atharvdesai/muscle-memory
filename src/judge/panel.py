@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import difflib
 import json
+import os
 import re
 from dataclasses import dataclass, field
 
@@ -36,6 +37,7 @@ class PanelScore:
     rationales: list[str] = field(default_factory=list)
     members_used: int = 0
     member_qualities: list[float] = field(default_factory=list)  # per-stance weighted quality
+    member_models: list[str] = field(default_factory=list)       # model each stance ran on
 
 
 _SYSTEM = (
@@ -96,17 +98,26 @@ class LLMPanelJudge:
         per_dim_frontier = {d: [] for d in _DIM_NAMES}
         rationales_skill, rationales_frontier = [], []
         members_used = 0
+        member_models: list[str] = []
+        # Optional per-stance model overrides so a panel can mix tiers (e.g.
+        # one Sonnet stance) - set for ablation runs, empty in normal takes.
+        overrides = [m.strip() for m in os.environ.get(
+            "MUSCLE_MEMORY_PANEL_MODELS", "").split(",") if m.strip()]
 
         for i, stance in enumerate(self.STANCES):
             # Alternate which output is shown as "A" to cancel position bias.
             swap = i % 2 == 1
             out_a, out_b = (frontier_output, skill_output) if swap else (skill_output, frontier_output)
-            resp = self.client.complete(
+            member_client = self.client
+            if i < len(overrides):
+                member_client = LLMClient(model=overrides[i])
+            resp = member_client.complete(
                 _SYSTEM,
                 _member_prompt(stance, prompt, context, expected, out_a, out_b),
                 max_tokens=600,
                 temperature=0.0,
             )
+            member_models.append(getattr(resp, "model", overrides[i] if i < len(overrides) else "default"))
             parsed = _extract_json(resp.text)
             if not parsed or "A" not in parsed or "B" not in parsed:
                 continue
@@ -129,9 +140,11 @@ class LLMPanelJudge:
                     for i in range(members_used)]
 
         skill = PanelScore({d: mean(per_dim_skill[d]) for d in _DIM_NAMES},
-                           rationales_skill, members_used, per_member(per_dim_skill))
+                           rationales_skill, members_used, per_member(per_dim_skill),
+                           member_models)
         frontier = PanelScore({d: mean(per_dim_frontier[d]) for d in _DIM_NAMES},
-                              rationales_frontier, members_used, per_member(per_dim_frontier))
+                              rationales_frontier, members_used, per_member(per_dim_frontier),
+                              member_models)
         return skill, frontier
 
 

@@ -24,9 +24,12 @@ SKILL_SYSTEM_TEMPLATE = (
 )
 
 
-def run_frontier(client: LLMClient, task) -> Completion:
+def run_frontier(client: LLMClient, task, tier: str = "frontier") -> Completion:
+    """Full prompt + full context, no skill sheet. `tier` selects the model
+    tier: "frontier" is the expensive default path; "skill" runs the SAME
+    prompt on the cheap model - the plain-cheap-model ablation arm."""
     user = f"{task.prompt}\n\nContext:\n{task.context}"
-    return client.complete(FRONTIER_SYSTEM, user, tier="frontier")
+    return client.complete(FRONTIER_SYSTEM, user, tier=tier)
 
 
 def run_skill(client: LLMClient, task, skill: dict, loaded_parts: list[dict]) -> Completion:
